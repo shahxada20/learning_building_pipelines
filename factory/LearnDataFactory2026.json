@@ -1,0 +1,9 @@
+{
+	"name": "LearnDataFactory2026",
+	"location": "indonesiacentral",
+	"identity": {
+		"type": "SystemAssigned",
+		"principalId": "26179b19-373f-4e95-b366-aa891584982f",
+		"tenantId": "e2edcf7c-5b29-4475-885a-cabddf0ae5d0"
+	}
+}

@@ -1,0 +1,276 @@
+{
+	"name": "storage_event_trigger",
+	"properties": {
+		"activities": [
+			{
+				"name": "only_selected_files",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "metadata",
+						"type": "DatasetReference"
+					},
+					"fieldList": [
+						"childItems"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "for_each_csv",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "only_selected_files",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('only_selected_files').output.childItems",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "If_file_matches",
+							"type": "IfCondition",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"expression": {
+									"value": "@startswith(item().name, 'dbo.Dim')",
+									"type": "Expression"
+								},
+								"ifTrueActivities": [
+									{
+										"name": "copy_csv_all",
+										"type": "Copy",
+										"dependsOn": [
+											{
+												"activity": "current_timestamp",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"timeout": "0.12:00:00",
+											"retry": 0,
+											"retryIntervalInSeconds": 30,
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"source": {
+												"type": "DelimitedTextSource",
+												"storeSettings": {
+													"type": "AzureBlobFSReadSettings",
+													"recursive": true,
+													"enablePartitionDiscovery": false
+												},
+												"formatSettings": {
+													"type": "DelimitedTextReadSettings"
+												}
+											},
+											"sink": {
+												"type": "DelimitedTextSink",
+												"storeSettings": {
+													"type": "AzureBlobFSWriteSettings"
+												},
+												"formatSettings": {
+													"type": "DelimitedTextWriteSettings",
+													"quoteAllText": true,
+													"fileExtension": ".txt"
+												}
+											},
+											"enableStaging": false,
+											"translator": {
+												"type": "TabularTranslator",
+												"typeConversion": true,
+												"typeConversionSettings": {
+													"allowDataTruncation": true,
+													"treatBooleanAsNumber": false
+												}
+											}
+										},
+										"inputs": [
+											{
+												"referenceName": "csv_files_source",
+												"type": "DatasetReference",
+												"parameters": {
+													"p_file": {
+														"value": "@item().name",
+														"type": "Expression"
+													}
+												}
+											}
+										],
+										"outputs": [
+											{
+												"referenceName": "csv_files_dest",
+												"type": "DatasetReference",
+												"parameters": {
+													"d_file": {
+														"value": "@concat(\n    replace(item().name, '.csv', ''),\n    '_',\n    formatDateTime(convertFromUtc(utcNow(), 'Pakistan Standard Time'), 'yyyy-MM-dd HH-mm-ss'),\n    ' PKT.csv'\n)",
+														"type": "Expression"
+													}
+												}
+											}
+										]
+									},
+									{
+										"name": "success_log",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "copy_csv_all",
+												"dependencyConditions": [
+													"Succeeded"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "success_log",
+											"value": {
+												"value": "@{concat(item().name, '- successfully copied at ', \nformatDateTime(utcNow(), 'yyyy-MM-dd HH:mm'))}",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "fail_log",
+										"type": "SetVariable",
+										"dependsOn": [
+											{
+												"activity": "copy_csv_all",
+												"dependencyConditions": [
+													"Failed"
+												]
+											}
+										],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "fail_log",
+											"value": {
+												"value": "@{concat('Failed to copy ', item().name, ' at ', formatDateTime(utcNow(), 'yyyy-MM-dd HH:mm'))}",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "metadataFilter",
+										"type": "Filter",
+										"state": "Inactive",
+										"onInactiveMarkAs": "Succeeded",
+										"dependsOn": [],
+										"userProperties": [],
+										"typeProperties": {
+											"items": {
+												"value": "item",
+												"type": "Expression"
+											}
+										}
+									},
+									{
+										"name": "current_timestamp",
+										"type": "SetVariable",
+										"state": "Inactive",
+										"onInactiveMarkAs": "Succeeded",
+										"dependsOn": [],
+										"policy": {
+											"secureOutput": false,
+											"secureInput": false
+										},
+										"userProperties": [],
+										"typeProperties": {
+											"variableName": "current_timestamp",
+											"value": {
+												"value": "@utcNow()",
+												"type": "Expression"
+											}
+										}
+									}
+								]
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "DeleteCopiedFiles",
+				"type": "Delete",
+				"state": "Inactive",
+				"onInactiveMarkAs": "Succeeded",
+				"dependsOn": [
+					{
+						"activity": "for_each_csv",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "0.12:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "path_to_copied_source",
+						"type": "DatasetReference"
+					},
+					"enableLogging": false,
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true,
+						"enablePartitionDiscovery": false
+					}
+				}
+			}
+		],
+		"variables": {
+			"success_log": {
+				"type": "String"
+			},
+			"fail_log": {
+				"type": "String"
+			}
+		},
+		"annotations": [],
+		"lastPublishTime": "2026-02-22T20:38:05Z"
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

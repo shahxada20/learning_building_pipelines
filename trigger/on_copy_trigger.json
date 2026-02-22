@@ -1,0 +1,24 @@
+{
+	"name": "on_copy_trigger",
+	"properties": {
+		"annotations": [],
+		"runtimeState": "Started",
+		"pipelines": [
+			{
+				"pipelineReference": {
+					"referenceName": "storage_event_trigger",
+					"type": "PipelineReference"
+				}
+			}
+		],
+		"type": "BlobEventsTrigger",
+		"typeProperties": {
+			"blobPathBeginsWith": "/bronze/blobs/Tables/cdc.json",
+			"ignoreEmptyBlobs": true,
+			"scope": "/subscriptions/0e394775-7b4d-4112-ac91-41bb3e401b84/resourceGroups/LearningResourceGroup/providers/Microsoft.Storage/storageAccounts/azurestoragefeb2026",
+			"events": [
+				"Microsoft.Storage.BlobCreated"
+			]
+		}
+	}
+}
