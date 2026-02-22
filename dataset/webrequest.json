@@ -1,0 +1,19 @@
+{
+	"name": "webrequest",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "GitHTTP",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "Json",
+		"typeProperties": {
+			"location": {
+				"type": "HttpServerLocation",
+				"relativeUrl": "anshlambagit/spotify_azure_project/refs/heads/main/source_scripts/spotify_initial_load.sql"
+			}
+		},
+		"schema": {}
+	},
+	"type": "Microsoft.DataFactory/factories/datasets"
+}
